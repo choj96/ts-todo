@@ -20,5 +20,6 @@ const app = initializeApp(firebaseConfig);
 
 // firestore 내보내기
 export const fireDB = getFirestore(app);
+
 // 인증하기
 export const auth = getAuth(app);

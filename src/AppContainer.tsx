@@ -15,12 +15,12 @@ import {
   setDoc,
   updateDoc,
 } from "firebase/firestore";
-import { async } from "@firebase/util";
 import {
   createUserWithEmailAndPassword,
+  deleteUser,
   signInWithEmailAndPassword,
+  User,
 } from "firebase/auth";
-
 export type TodoType = {
   uid: string;
   title: string;
@@ -57,43 +57,52 @@ export type StatesType = {
   todoList: Array<TodoType>;
 };
 
+// 로그인 및 회원가입 타입정의
+export type CallBacksFireBaseType = {
+  fbLogin: (email: string, password: string) => void;
+  fbJoin: (email: string, password: string) => void;
+  fbLogout: () => void;
+  fbDeleteUser: () => void;
+};
+
 const AppContainer = () => {
   // 상태데이터
   let initData: Array<TodoType> = [];
   // 로컬스토리지 이름
-  // const localStorageName = "tstodo";
-  // firebase Storage 이름
-  const firebaseStrageName = "tsmemo";
-  // 컬렉션(DB 단위 : mongoDB 참조) 불러오기
-  const memoCollectionRef = collection(fireDB, firebaseStrageName);
+  const localStorageName = "tstodo";
 
-  // 1.로컬스토리지 활용 =>  2.firebase로 변경
+  // firebase Storage 이름
+  const firebaseStorageName = "tsmemo";
+  // 컬렉션(DataBase 단위: MongoDB 참조) 불러오기
+  const memoCollectionRef = collection(fireDB, firebaseStorageName);
+
+  // 로컬스토리지 활용 : 파이어베이스로 변경
   const getLocalData = async () => {
     // const data = localStorage.getItem(localStorageName);
     // console.log("localStorage", data);
+
     const q = await query(memoCollectionRef);
     const data = await getDocs(q);
-    console.log("firebase colletion data:", data);
+    // console.log("firebase collection data : ", data);
 
     if (data !== null) {
       // initData = JSON.parse(data);
       // 모든 데이터 가져와서 뜯기
-      // [{},{},{}, ...]
+      // [ {}, {}, {}, ....]
       const firebaseData = data.docs.map((doc) => ({
         ...doc.data(),
       }));
-      // firebase = [{},{},{}, ...]
+      // firebaseData = [ {}, {}, {}, ....]
       // Array<TodoType> 형태가 아니라서 아래로 변환한다.
       const initData = firebaseData.map((item) => {
-        // firebase에서 가져온 데이터를
-        // Typescript 에서 우리가 만든 Type 으로 형변환하기 (as 사용)
+        // 파이어베이스에서 가져온 데이터를
+        // TypeScript 에서 우리가 만든 Type 으로 형변환하기
         return item as TodoType;
       });
       // setTodoList(Array<TodoType>) 형을 원했다.
       setTodoList(initData);
     }
   };
-
   // 화면의 내용을 갱신해 주기 위해서 state Hook 사용
   const [todoList, setTodoList] = useState<Array<TodoType>>(initData);
 
@@ -108,7 +117,7 @@ const AppContainer = () => {
   ) => {
     // firebase 에 쓰기
     try {
-      const res = await setDoc(doc(fireDB, firebaseStrageName, uid), {
+      const res = await setDoc(doc(fireDB, firebaseStorageName, uid), {
         uid: uid,
         title: title,
         body: body,
@@ -116,7 +125,7 @@ const AppContainer = () => {
         sticker: sticker,
         done: false,
       });
-      console.log(res); // res는 undefined입니다.
+      // console.log(res); // res는 undefined입니다.
     } catch (e) {
       console.log(e);
     }
@@ -148,7 +157,7 @@ const AppContainer = () => {
   // 수정기능
   const updateTodo = async (todo: TodoType) => {
     // 원하는 데이터 가져옴
-    const userDoc = doc(fireDB, firebaseStrageName, todo.uid);
+    const userDoc = doc(fireDB, firebaseStorageName, todo.uid);
     try {
       const res = await updateDoc(userDoc, {
         title: todo.title,
@@ -163,6 +172,7 @@ const AppContainer = () => {
     } finally {
       // console.log("end");
     }
+
     // console.log("갱신될 내용 : ", todo);
     // 1. 먼저 uid 를 비교해서 배열의 순서에 맞는 1개를 찾는다.
     const index = todoList.findIndex((item) => item.uid === todo.uid);
@@ -186,10 +196,10 @@ const AppContainer = () => {
   // 삭제기능
   const deleteTodo = async (todo: TodoType) => {
     // firebase 데이터 1개 삭제
-    const userDoc = doc(fireDB, firebaseStrageName, todo.uid);
+    const userDoc = doc(fireDB, firebaseStorageName, todo.uid);
     try {
       const res = await deleteDoc(userDoc);
-      console.log(res); // res는 undefined
+      // console.log(res); // res는 undefined
     } catch (e) {
       console.log(e);
     } finally {
@@ -207,26 +217,28 @@ const AppContainer = () => {
       draft.splice(index, 1);
     });
     setTodoList(newTodoList);
+
     // localStorage.setItem(localStorageName, JSON.stringify(newTodoList));
   };
   // 전체 목록 삭제
   const clearTodo = () => {
+    setTodoList([]);
+
     todoList.forEach(async (element) => {
-      const userDoc = doc(fireDB, firebaseStrageName, element.uid);
+      // firebase 데이터 1개 삭제
+      const userDoc = doc(fireDB, firebaseStorageName, element.uid);
       try {
         const res = await deleteDoc(userDoc);
-        console.log(res); // res는 undefined
+        // console.log(res); // res는 undefined
       } catch (e) {
         console.log(e);
       } finally {
         console.log("end");
       }
     });
-    setTodoList([]);
 
     // localStorage.removeItem(localStorageName);
   };
-
   // 정렬기능
   const sortTodo = (sortType: string) => {};
   // state 관리기능타입
@@ -241,7 +253,9 @@ const AppContainer = () => {
   // 데이터목록의 타입
   const states: StatesType = { todoList };
 
-  //  사용자 로그인 기능
+  // 현재 사용자가 로그인 된 상태인지 아닌지 구별
+  const [userLogin, setUserLogin] = useState(false);
+  // 사용자 로그인 기능
   const fbLogin = (email: string, password: string) => {
     signInWithEmailAndPassword(auth, email, password)
       .then((userCredential) => {
@@ -249,14 +263,13 @@ const AppContainer = () => {
         const user = userCredential.user;
         console.log(user);
 
-        // ...
+        setUserLogin(true);
       })
       .catch((error) => {
         const errorCode = error.code;
         const errorMessage = error.message;
-        console.log("errorCode :", errorCode);
-        console.log("errorMessage :", errorMessage);
-        // ..
+        console.log("errorCode : ", errorCode);
+        console.log("errorMessage : ", errorMessage);
       });
   };
 
@@ -267,21 +280,55 @@ const AppContainer = () => {
         // Signed in
         const user = userCredential.user;
         console.log(user);
-        // ...
+        // 생각을 더 해보자 ????
+        setUserLogin(true);
       })
       .catch((error) => {
         const errorCode = error.code;
         const errorMessage = error.message;
-        console.log("errorCode :", errorCode);
-        console.log("errorMessage :", errorMessage);
-        // ..
+        console.log("errorCode : ", errorCode);
+        console.log("errorMessage : ", errorMessage);
       });
   };
+  // 사용자 로그아웃
+  const fbLogout = () => {
+    auth.signOut();
+    setUserLogin(false);
+  };
+  // 회원탈퇴
+  const fbDeleteUser = async () => {
+    await deleteUser(auth.currentUser as User)
+      .then(() => {
+        // User deleted.
+        setUserLogin(false);
+      })
+      .catch((error) => {
+        // An error ocurred
+        // ...
+        console.log("회원 탈퇴 실패");
+      });
+  };
+
+  // 로그인 관리 기능 타입
+  const callBacksFireBase: CallBacksFireBaseType = {
+    fbLogin,
+    fbJoin,
+    fbLogout,
+    fbDeleteUser,
+  };
+
   useEffect(() => {
     getLocalData();
   }, []);
 
-  return <App states={states} callBacks={callBacks} />;
+  return (
+    <App
+      states={states}
+      callBacks={callBacks}
+      callBacksFireBase={callBacksFireBase}
+      userLogin={userLogin}
+    />
+  );
 };
 
 export default AppContainer;
