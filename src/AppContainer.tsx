@@ -1,3 +1,24 @@
+// store 관련
+import { useSelector, useDispatch } from "react-redux";
+import type { RootState } from "./store/store";
+// 로그인 관리 액션
+import {
+  fbLoginState,
+  fbJoinState,
+  fbLogoutState,
+  fbDeleteUserState,
+} from "./store/userSlice";
+
+// todo 목록 관리 액션
+import {
+  initTodoState,
+  addTodoState,
+  updateTodoState,
+  deleteTodoState,
+  sortTodoState,
+  clearTodoState,
+} from "./store/todoSlice";
+
 // firebase 관련
 import { fireDB, auth } from "./firebase";
 
@@ -66,10 +87,13 @@ export type CallBacksFireBaseType = {
 };
 
 const AppContainer = () => {
+  // store 코드
+  const dispatch = useDispatch();
+  const user = useSelector((state: RootState) => state.user);
+  const todo = useSelector((state: RootState) => state.todo);
+
   // 상태데이터
   let initData: Array<TodoType> = [];
-  // 로컬스토리지 이름
-  const localStorageName = "tstodo";
 
   // firebase Storage 이름
   const firebaseStorageName = "tsmemo";
@@ -100,11 +124,12 @@ const AppContainer = () => {
         return item as TodoType;
       });
       // setTodoList(Array<TodoType>) 형을 원했다.
-      setTodoList(initData);
+      dispatch(initTodoState(initData));
+      // setTodoList(initData);
     }
   };
   // 화면의 내용을 갱신해 주기 위해서 state Hook 사용
-  const [todoList, setTodoList] = useState<Array<TodoType>>(initData);
+  // const [todoList, setTodoList] = useState<Array<TodoType>>(initData);
 
   // 추가기능
   const addTodo = async (
@@ -139,19 +164,27 @@ const AppContainer = () => {
     // Immer 는 객체의 불변성을 유지하는 것으로
     // 업무에서 필수로 활용한다.
     // 즉, {...todoList, newTodo} 를 대신한다.
-    let newTodoList = produce(todoList, (draft) => {
-      draft.push({
-        uid: uid,
-        title: title,
-        body: body,
-        date: date,
-        sticker: sticker,
-        done: false,
-      });
-    });
+    // let newTodoList = produce(todoList, (draft) => {
+    //   draft.push({
+    //     uid: uid,
+    //     title: title,
+    //     body: body,
+    //     date: date,
+    //     sticker: sticker,
+    //     done: false,
+    //   });
+    // });
     // state 업데이트 : 화면 갱신
-    setTodoList(newTodoList);
-
+    const tempTodo: TodoType = {
+      uid: uid,
+      title: title,
+      body: body,
+      date: date,
+      sticker: sticker,
+      done: false,
+    };
+    dispatch(addTodoState(tempTodo));
+    // setTodoList(newTodoList);
     // localStorage.setItem(localStorageName, JSON.stringify(newTodoList));
   };
   // 수정기능
@@ -175,22 +208,30 @@ const AppContainer = () => {
 
     // console.log("갱신될 내용 : ", todo);
     // 1. 먼저 uid 를 비교해서 배열의 순서에 맞는 1개를 찾는다.
-    const index = todoList.findIndex((item) => item.uid === todo.uid);
+    // const index = todoList.findIndex((item) => item.uid === todo.uid);
     // console.log("갱신될 index : ", index);
     // 2. 해당하는 uid 의 내용을 갱신한다.
-    const newTodoList = produce(todoList, (draft) => {
-      draft[index] = {
-        ...draft[index],
-        title: todo.title,
-        body: todo.body,
-        date: moment(todo.date).format("YYYY-MM-DD"),
-        sticker: todo.sticker,
-        done: todo.done,
-      };
-    });
+    // const newTodoList = produce(todoList, (draft) => {
+    //   draft[index] = {
+    //     ...draft[index],
+    //     title: todo.title,
+    //     body: todo.body,
+    //     date: moment(todo.date).format("YYYY-MM-DD"),
+    //     sticker: todo.sticker,
+    //     done: todo.done,
+    //   };
+    // });
     // 3. state를 업데이트한다.
-    setTodoList(newTodoList);
-
+    let tempTodo: TodoType = {
+      uid: todo.uid,
+      title: todo.title,
+      body: todo.body,
+      date: moment(todo.date).format("YYYY-MM-DD"),
+      sticker: todo.sticker,
+      done: todo.done,
+    };
+    dispatch(updateTodoState(tempTodo));
+    // setTodoList(newTodoList);
     // localStorage.setItem(localStorageName, JSON.stringify(newTodoList));
   };
   // 삭제기능
@@ -206,25 +247,24 @@ const AppContainer = () => {
       console.log("end");
     }
 
-    let index = todoList.findIndex((item) => todo.uid === item.uid);
+    // let index = todoList.findIndex((item) => todo.uid === item.uid);
     // state 의 목록을 삭제 후 갱신한다. 불변성 라이브러리 (immer) 활용
     // let newTodoList = produce( 대상, (draft) => {})
-    let newTodoList = produce(todoList, (draft) => {
-      // index 의 순서로 부터 1개를 제거하고
-      // 나머지 배열을 리턴한다.
-      // 즉, 원본을 복사해서 새로운 배열을 만들고 그 중에 1개를 제거한후
-      // 새로운 배열을 리턴하여 state 를 업데이트 한다.
-      draft.splice(index, 1);
-    });
-    setTodoList(newTodoList);
+    // let newTodoList = produce(todoList, (draft) => {
+    //   // index 의 순서로 부터 1개를 제거하고
+    //   // 나머지 배열을 리턴한다.
+    //   // 즉, 원본을 복사해서 새로운 배열을 만들고 그 중에 1개를 제거한후
+    //   // 새로운 배열을 리턴하여 state 를 업데이트 한다.
+    //   draft.splice(index, 1);
+    // });
 
+    dispatch(deleteTodoState(todo));
+    // setTodoList(newTodoList);
     // localStorage.setItem(localStorageName, JSON.stringify(newTodoList));
   };
   // 전체 목록 삭제
   const clearTodo = () => {
-    setTodoList([]);
-
-    todoList.forEach(async (element) => {
+    todo.todoList.forEach(async (element) => {
       // firebase 데이터 1개 삭제
       const userDoc = doc(fireDB, firebaseStorageName, element.uid);
       try {
@@ -237,10 +277,14 @@ const AppContainer = () => {
       }
     });
 
+    dispatch(clearTodoState());
+    // setTodoList([]);
     // localStorage.removeItem(localStorageName);
   };
   // 정렬기능
-  const sortTodo = (sortType: string) => {};
+  const sortTodo = (sortType: string) => {
+    dispatch(sortTodoState(sortType));
+  };
   // state 관리기능타입
   const callBacks: CallBacksType = {
     addTodo,
@@ -251,10 +295,10 @@ const AppContainer = () => {
   };
 
   // 데이터목록의 타입
-  const states: StatesType = { todoList };
+  const states: StatesType = { todoList: todo.todoList };
 
   // 현재 사용자가 로그인 된 상태인지 아닌지 구별
-  const [userLogin, setUserLogin] = useState(false);
+  // const [userLogin, setUserLogin] = useState(false);
   // 사용자 로그인 기능
   const fbLogin = (email: string, password: string) => {
     signInWithEmailAndPassword(auth, email, password)
@@ -263,7 +307,8 @@ const AppContainer = () => {
         const user = userCredential.user;
         console.log(user);
 
-        setUserLogin(true);
+        dispatch(fbLoginState({ email, password }));
+        // setUserLogin(true);
       })
       .catch((error) => {
         const errorCode = error.code;
@@ -272,7 +317,6 @@ const AppContainer = () => {
         console.log("errorMessage : ", errorMessage);
       });
   };
-
   // 사용자 가입
   const fbJoin = (email: string, password: string) => {
     createUserWithEmailAndPassword(auth, email, password)
@@ -281,7 +325,8 @@ const AppContainer = () => {
         const user = userCredential.user;
         console.log(user);
         // 생각을 더 해보자 ????
-        setUserLogin(true);
+        dispatch(fbJoinState());
+        // setUserLogin(true);
       })
       .catch((error) => {
         const errorCode = error.code;
@@ -293,14 +338,17 @@ const AppContainer = () => {
   // 사용자 로그아웃
   const fbLogout = () => {
     auth.signOut();
-    setUserLogin(false);
+
+    dispatch(fbLogoutState());
+    // setUserLogin(false);
   };
   // 회원탈퇴
   const fbDeleteUser = async () => {
     await deleteUser(auth.currentUser as User)
       .then(() => {
         // User deleted.
-        setUserLogin(false);
+        dispatch(fbDeleteUserState());
+        // setUserLogin(false);
       })
       .catch((error) => {
         // An error ocurred
@@ -326,7 +374,7 @@ const AppContainer = () => {
       states={states}
       callBacks={callBacks}
       callBacksFireBase={callBacksFireBase}
-      userLogin={userLogin}
+      userLogin={user.userLogin}
     />
   );
 };

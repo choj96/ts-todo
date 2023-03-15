@@ -48,6 +48,7 @@ const Login = ({ userLogin, callBacksFireBase }: PropsType) => {
 
   return (
     <div style={{ paddingBottom: 20, minHeight: 500 }}>
+      {/* store 테스트 코드 */}
       <Form
         {...formItemLayout}
         form={form}
